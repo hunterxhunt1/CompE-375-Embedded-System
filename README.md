@@ -8,5 +8,5 @@ Content within these files:
 - UART
 - Keypad Multiplexing
 - Frequency to Sound Converter
-- Changing PMW With Interrupts
+- Changing LED Brightness Through Interrupts
 - EEPROM Programming
