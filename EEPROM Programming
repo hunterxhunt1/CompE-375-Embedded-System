@@ -1,0 +1,97 @@
+/*
+ * Lab 8.c
+ *
+ * Created: 4/22/2021 7:15:10 PM
+ * Author : cyrus
+ */ 
+
+#define F_CPU 16000000UL
+#define LEDON PORTB |= (1 << PORTB5);//turns LED on
+#define LEDOFF PORTB &= ~(1 << PORTB5);//turns LED off
+
+#include <avr/io.h>
+#include <avr/eeprom.h>
+#include <avr/interrupt.h>
+
+void timer0(){//sets PWM, we need 5ms period
+	TCCR0A |= (1 << WGM01);//CTC mode
+	OCR0A = 77;//OCRA value is 77 for a 5ms period at 16MHz 
+	TCCR0B |= (1 << CS00) | (1 << CS02);//pre scaler 1024
+}//end timer
+
+void interrupts(){
+	cli();//clear interrupts flag
+	sei();//enable global interrupts
+	TIMSK0 |= (1 << OCIE0A) | (1 << OCIE0B);//enable timers for LED 
+}//end interrupts
+
+void init_OCRB(uint8_t value){
+	switch (value){
+		case 0:OCR0B = 0;//0%
+		break;
+		
+		case 1: OCR0B = 8;//10%
+		break;
+		
+		case 2: OCR0B = 15;//20%
+		break;
+		
+		case 3:OCR0B = 23;//30%
+		break;
+		
+		case 4: OCR0B = 31;//40%
+		break;
+		
+		case 5: OCR0B = 39;//50%
+		break;
+		
+		case 6:OCR0B = 46;//60%
+		break;
+		
+		case 7: OCR0B = 54;//70%
+		break;
+		
+		case 8: OCR0B = 62;//80%
+		break;
+		
+		case 9: OCR0B = 69;//90%
+		break;
+		
+		case 10: OCR0B = 77;//100%
+		break;
+		
+		
+	}//end switch
+	
+}//end init_OCRB
+
+ISR(TIMER0_COMPA_vect){
+	LEDON;
+}
+
+ISR(TIMER0_COMPB_vect){
+	LEDOFF;
+}
+
+int main(void)
+{
+	//initialize functions
+	interrupts();
+	timer0();
+	
+	DDRB |= (1 << DDB5);
+	/*I am choosing 27 memory address to be read in the EEPROM*/
+	uint8_t byte = eeprom_read_byte((uint8_t*)27);//reads the 27 mem addresses in the EEPROM
+	if(byte > 10){
+		byte = 0;
+		eeprom_update_byte((uint8_t*)27,byte);
+	}
+	init_OCRB(byte);
+	byte ++;//increment byte
+	eeprom_update_byte((uint8_t*)27,byte);
+	
+    /* Replace with your application code */
+    while (1) 
+    {
+    }
+}
