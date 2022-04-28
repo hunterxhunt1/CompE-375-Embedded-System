@@ -1,0 +1,170 @@
+/*
+ * Lab 6.c
+ *
+ * Created: 3/31/2021 9:25:09 PM
+ * Author : cyrus
+ */ 
+#define F_CPU 16000000
+#include <avr/io.h>
+#include <util/delay.h>
+#include <avr/interrupt.h>
+
+#define LEDON PORTB |= (1 << PORTB5);
+#define LEDOFF PORTB &= ~(1 << PORTB5);
+
+/*
+	RED ID: 821389017
+	X = 0
+	Y = 1
+	Z = 7
+	
+	(X + 1) = 1 ms --> PS = 64, in CTC mode 249 (0xF9)
+	
+	(Z + 1) * 100Hz --> 800Hz
+	800 = 16Mhz/(x * 256) --> x = 78.125 - 1 = 77 (0x4D)
+	
+	Keypad: Only 0 - 9, don't need A B C D * #
+	
+	1 = 10% ... 9 = 90% Duty Cycle = OCRB -- switch statement?
+*/
+
+void interrupts(){
+	cli();//clear interrupt flag
+	sei();//enable global interrupts
+	TIMSK2 |= (1 << OCIE2A) | (1 << OCIE2B);//Timer 2 --> enable OCR0A/OCR0B interrupts duty cycle
+	TIMSK0 |= (1 << OCIE0A);// Timer 0 --> keypad scan interrupt
+}//end of interrupts
+
+void timer1(){
+	//enable CTC mode with pre-scale = 64
+	TCCR0A |= (1 << WGM01);
+	TCCR0A &= ~(1 << WGM00);
+	TCCR0A &= ~(1 << WGM02);
+	
+	OCR0A = 0xF9;//249
+	
+	TCCR0B |= (1 << CS01) | (1 << CS00);
+	TCCR0B &= ~(1 << CS02);
+	
+}//end timer1
+
+void timer2(){
+	//enable CTC mode
+	TCCR2A |= (1 << WGM21);
+	TCCR2A &= ~(1 << WGM22);
+	TCCR2A &= ~(1 << WGM20);
+	
+	OCR2A = 0x4D; //77 
+	TCCR2B |= (1 << CS22);
+}//end timer2
+
+void I_O(){
+	 DDRB |= (1 << DDB5);
+	 DDRD |= (1 << DDD4) | (1 << DDD5) | (1 << DDD6) | (1 << DDD7); //PORTD = output
+	 DDRB &= ~(1 << DDB0) | ~(1 << DDB1) | ~(1 << DDB2) | ~(1 << DDB3);// PORTB = inputs
+	 PINB |= (1 << PINB0 | 1 << PINB1 | 1 << PINB2 | 1 << PINB3);//B pull up resistors
+}//end of I_O
+
+
+void init_OCR2B(int a){
+	
+	switch(a){
+	case 0:
+	 OCR2B = 0x00;
+	 break;//0% --> 0 
+	case 1:
+	 OCR2B = 0x8;
+	 break;//10% --> 8
+	case 2:
+	 OCR2B = 0xF; 
+	 break;//20% --> 15
+	case 3:
+	 OCR2B = 0x17; 
+	 break;//30% --> 23
+	case 4:
+	 OCR2B = 0x1F; 
+	 break;//40% --> 31
+	case 5:
+	 OCR2B = 0x27; 
+	 break;//50% --> 39
+	case 6:
+	 OCR2B = 0x2E; 
+	 break;//60% --> 46
+	case 7:
+	 OCR2B = 0x36; 
+	 break;//70% --> 54
+	case 8:
+	 OCR2B = 0x3E; 
+	 break;//80% --> 62
+	case 9:
+	 OCR2B = 0x45;
+	 break;//90% --> 69
+	}
+	
+}//end init_OCR2B 
+
+
+void keyboard(){
+
+	int keypad[4][4] = {{1,2,3,500},{4,5,6,500},{7,8,9,500},{500,0,500,500}};
+	
+	int ROW[4] = {PORTD4,PORTD5,PORTD6,PORTD7};
+	int COL[4] = {PORTB0,PORTB1,PORTB2,PORTB3};
+	
+	PORTD |= (1 << 4| 1 << 5 | 1 << 6 | 1 << 7);//rows = high
+	for (int i = 0; i < 4; i++){
+		//PORTD |= (1 << 4| 1 << 5 | 1 << 6 | 1 << 7);//rows = high
+		PORTD &= ~(1 << ROW[i]);
+		for (int j = 0; j < 4; j++){
+			while(!(PINB & ~(1 << COL[j]))){
+				init_OCR2B(keypad[i][j]);
+			}
+		}
+		//PORTD |= (1 << ROW[i]);
+	}
+	
+}//end keyboard
+
+
+ISR(TIMER0_COMPA_vect){
+	keyboard();
+}
+
+ISR(TIMER2_COMPB_vect){
+	LEDOFF;
+}
+
+ISR(TIMER2_COMPA_vect){
+	LEDON;
+}
+
+int main(void){
+
+	I_O();
+	interrupts();
+	timer1();
+	timer2();
+	//keyboard();
+	
+	int keypad[4][4] = {{1,2,3,500},{4,5,6,500},{7,8,9,500},{500,0,500,500}};
+	
+	int ROW[4] = {PORTD4,PORTD5,PORTD6,PORTD7};
+	int COL[4] = {PORTB0,PORTB1,PORTB2,PORTB3};
+	
+    /* Replace with your application code */
+    while (1) {
+			//PORTD |= (1 << 4| 1 << 5 | 1 << 6 | 1 << 7);//rows = high
+			for (int i = 0; i < 4; i++){
+				PORTD |= (1 << 4| 1 << 5 | 1 << 6 | 1 << 7);//rows = high
+				PORTD &= ~(1 << ROW[i]);
+				for (int j = 0; j < 4; j++){
+					while(!(PINB & (1 << COL[j]))){
+						init_OCR2B(keypad[i][j]);
+					}
+				}
+				PORTD |= (1 << ROW[i]);
+			}
+		
+	}
+	
+}//end main
