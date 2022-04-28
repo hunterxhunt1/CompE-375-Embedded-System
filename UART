@@ -1,0 +1,43 @@
+/*
+ * Lab 2.c
+ *
+ * Created: 2/18/2021 10:59:46 AM
+ * Author : Cyrus RJ Sagun
+ */ 
+
+
+#define F_CPU 16000000
+#define BAUD 9600
+#define BAUDRATE ((F_CPU)/(BAUD*16UL) - 1) //baud rate value
+
+#include <avr/io.h>
+#include <util/delay.h>
+
+void UART_init(void){
+	
+	UBRR0H = (BAUDRATE >> 8);// we shift to set high bits to zero
+	UBRR0L = (BAUDRATE); //set low bits to the BAUDRATE
+	UCSR0B |= (1 << TXEN0) | (1 << RXEN0);//enable receiver and transmitter
+	UCSR0C |= (1 << UCSZ00) | (1 << UCSZ01) | (0 << USBS0);//8 bit data frame AND 1 bit stop mode
+	
+}//end of function
+
+int main(void)
+{
+	UART_init();
+	unsigned char RED_ID[] = "821389017\n";//my red ID
+	int i = 0;
+	
+    /* Replace with your application code */
+    while (1)
+    {
+		for(i = 0; i <= 9; i++){// I set the end to 9 to read the new line
+			//if(RED_ID != 0)
+			while (!(UCSR0A & (1 << UDRE0)));//waiting for data to be received
+				UDR0 = RED_ID[i]; //sends the character bytes
+				_delay_ms(100);// 1 ms per character
+		}//end for loop
+	_delay_ms(500);//delay per iteration
+    }
+	
+}
