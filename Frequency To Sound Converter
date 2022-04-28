@@ -1,0 +1,73 @@
+/*
+ * Lab 5.c
+ *
+ * Created: 3/25/2021 3:09:10 PM
+ * Author : cyrus
+ */ 
+
+#define F_CPU 16000000UL
+#include <avr/io.h>
+#include <util/delay.h>
+#include <math.h>
+
+void timer(){//setting timer 
+	TCCR2A |= (1 << WGM21) | (1 << WGM20);//enables Fast PWM mode
+	TCCR2A |= (1 << COM2B1);//non-inverting
+	TCCR2B |= (1 << WGM22);//PWM mode
+	//OCR2A = 128;//PWM = 50% duty cycle
+	//OCR2B = OCR2A / 2;
+	TCCR2B |= (1 << CS22) | (1 << CS21); //| (1 << CS20);//pre-scaler = 256 & start timer
+}
+
+void period(unsigned int X){
+	float f = 1.0/(440 * (pow(2,X/12.0)));//(f * 256)/ 4.096
+	//float a = (256/16000000) * 256;
+	//float frequency = (f*256)/a;	
+	float frequency = ((16000000 * f) / 256) - 1;
+	OCR2A = frequency;
+	OCR2B = OCR2A / 2;
+	//return OCR2B;
+}
+
+void I_O(void){// initializing input and output pins
+ DDRD |= (1 << DDD4) | (1 << DDD5) | (1 << DDD6) | (1 << DDD7); //PORTD = output
+ DDRB &= ~(1 << DDB0) | ~(1 << DDB1) | ~(1 << DDB2) | ~(1 << DDB3);// PORTB = inputs 
+ PINB |= (1 << PINB0 | 1 << PINB1 | 1 << PINB2 | 1 << PINB3);//B pull up resistors
+}
+
+int main(void)
+{
+	I_O();
+	timer();
+	
+	int notes[4][4] = {{0,1,2,3},{4,5,6,7},{8,9,10,11},{12,13,14,15}};
+	
+	int ROW[4] = {PORTD4,PORTD5,PORTD6,PORTD7};
+	int COL[4] = {PORTB0,PORTB1,PORTB2,PORTB3};	
+		
+		DDRD |= (1 << DDD3);//PD3 = output
+	
+    /* Replace with your application code */
+    while (1) 
+    {
+		PORTD |= (1 << 4| 1 << 5 | 1 << 6 | 1 << 7);//rows = high
+		for (int i = 0; i < 4; i++)
+		{
+			PORTD &= ~(1 << ROW[i]);
+			//OCR2B = 0;
+			for (int j = 0; j < 4; j++)
+		{
+			  if(PINB & (1 << COL[j]))        // if input is not read
+			  {
+				  OCR2A = 0;
+				  OCR2B = 0;
+			  }
+			while(!(PINB & (1 << COL[j]))){//COL[j] = pulled low
+				period(notes[i][j]);
+			}
+		}
+		PORTD |= (1 << ROW[i]);
+			
+		}
+    }
+}//end main
